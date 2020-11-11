@@ -195,7 +195,7 @@ int FAST_FUNC bbunpack(char **argv,
 #if ENABLE_UNCOMPRESS \
  || ENABLE_FEATURE_BZIP2_DECOMPRESS \
  || ENABLE_UNLZMA || ENABLE_LZCAT || ENABLE_LZMA \
- || ENABLE_UNXZ || ENABLE_XZCAT || ENABLE_XZ
+ || ENABLE_UNXZ || ENABLE_XZCAT || ENABLE_XZ || ENABLE_ZSTD
 static
 char* FAST_FUNC make_new_name_generic(char *filename, const char *expected_ext)
 {
@@ -599,5 +599,108 @@ int unxz_main(int argc UNUSED_PARAM, char **argv)
 
 	argv += optind;
 	return bbunpack(argv, unpack_xz_stream, make_new_name_generic, "xz");
+}
+#endif
+
+/*
+ * Copied from the unxz implementation,
+ * modifications to make it behave more like zstd tools
+ * done by Norbert Lange
+ */
+
+//usage:#define unzstd_trivial_usage
+//usage:       "[-cfk] [FILE]..."
+//usage:#define unzstd_full_usage "\n\n"
+//usage:       "Decompress FILEs (or stdin)\n"
+//usage:     "\n	-c	Write to stdout"
+//usage:     "\n	-f	Force"
+//usage:     IF_LONG_OPTS(
+//usage:     "\n	--rm	Remove input files"
+//usage:     )
+//usage:     "\n	-k	Keep input files (default)"
+//usage:     "\n	-t	Test integrity"
+//usage:
+//usage:#define zstd_trivial_usage
+//usage:       "-d [-cfk] [FILE]..."
+//usage:#define zstd_full_usage "\n\n"
+//usage:       "Decompress FILEs (or stdin)\n"
+//usage:     "\n	-d	Decompress"
+//usage:     "\n	-c	Write to stdout"
+//usage:     "\n	-f	Force"
+//usage:     IF_LONG_OPTS(
+//usage:     "\n	--rm	Remove input files"
+//usage:     )
+//usage:     "\n	-k	Keep input files (default)"
+//usage:     "\n	-t	Test integrity"
+//usage:
+//usage:#define zstdcat_trivial_usage
+//usage:       "[FILE]..."
+//usage:#define zstdcat_full_usage "\n\n"
+//usage:       "Decompress to stdout"
+
+//config:config UNZSTD
+//config:	bool "unzstd (22 kb)"
+//config:	default y
+//config:	help
+//config:	Zstandard is a fast compression algorithm.
+//config:
+//config:config ZSTDCAT
+//config:	bool "zstdcat (22 kb)"
+//config:	default y
+//config:	help
+//config:	Alias to "unzstd -c".
+//config:
+//config:config ZSTD
+//config:	bool "zstd -d"
+//config:	default y
+//config:	help
+//config:	Enable this option if you want commands like "zstd -d" to work.
+//config:	IOW: you'll get zstd applet, but it will always require -d option.
+
+//applet:IF_UNZSTD(APPLET(unzstd, BB_DIR_USR_BIN, BB_SUID_DROP))
+//                APPLET_ODDNAME:name   main  location        suid_type     help
+//applet:IF_ZSTDCAT(APPLET_ODDNAME(zstdcat, unzstd, BB_DIR_USR_BIN, BB_SUID_DROP, zstdcat))
+//applet:IF_ZSTD(   APPLET_ODDNAME(zstd,    unzstd, BB_DIR_USR_BIN, BB_SUID_DROP, zstd))
+//kbuild:lib-$(CONFIG_UNZSTD) += bbunzip.o
+//kbuild:lib-$(CONFIG_ZSTDCAT) += bbunzip.o
+//kbuild:lib-$(CONFIG_ZSTD) += bbunzip.o
+#if ENABLE_UNZSTD || ENABLE_ZSTDCAT || ENABLE_ZSTD
+int unzstd_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
+int unzstd_main(int argc UNUSED_PARAM, char **argv)
+{
+# if ENABLE_LONG_OPTS
+	static const char unzstd_longopts[] ALIGN1 =
+		"stdout\0"      No_argument       "c"
+		"force\0"       No_argument       "f"
+		"keep\0"        No_argument       "k"
+		"verbose\0"     No_argument       "v"
+		"quiet\0"       No_argument       "q"
+		"decompress\0"  No_argument       "d"
+		"uncompress\0"  No_argument       "d"
+		"test\0"        No_argument       "t"
+		"rm\0"          No_argument       "\xff"
+	;
+# endif
+	enum {
+		OPT_ZSTD_RM = 1U << (BBUNPK_OPTSTRLEN - 1 + 3),
+	};
+
+	uint32_t opts = getopt32long(argv, IF_LONG_OPTS("^") BBUNPK_OPTSTR "dt" IF_LONG_OPTS("\xff""\0""k-\xff:\xff-k"), unzstd_longopts);
+
+	/* zstd without -d or -t? */
+	if (ENABLE_ZSTD && applet_name[4] == '\0' && !(opts & (BBUNPK_OPT_DECOMPRESS|BBUNPK_OPT_TEST)))
+		bb_show_usage();
+
+	/* set BBUNPK_OPT_STDOUT for zstdcat.
+	   (un)zstd keeps all files by default, --rm deletes. */
+	opts |= (ENABLE_LONG_OPTS && (opts & OPT_ZSTD_RM) ? 0 : BBUNPK_OPT_KEEP) |
+			(ENABLE_ZSTDCAT && applet_name[4] == 'c' ? BBUNPK_OPT_STDOUT : 0);
+	option_mask32 = opts;
+
+	argv += optind;
+	return bbunpack(argv, unpack_zstd_stream, make_new_name_generic, "zst");
+
+	/* dont alias with BBUNPK enums */
+	{ enum { unzstd_static_assert = 1/((unsigned)OPT_ZSTD_RM > (unsigned)BBUNPK_OPT_TEST) }; }
 }
 #endif

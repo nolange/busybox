@@ -21,6 +21,10 @@ config FEATURE_SEAMLESS_GZ
 	bool "Make tar, rpm, modprobe etc understand .gz data"
 	default y
 
+config FEATURE_SEAMLESS_ZSTD
+	bool "Make tar, rpm, modprobe etc understand .zst data"
+	default y
+
 config FEATURE_SEAMLESS_Z
 	bool "Make tar, rpm, modprobe etc understand .Z data"
 	default n  # it is ancient
@@ -34,5 +38,24 @@ config FEATURE_LZMA_FAST
 	help
 	This option reduces decompression time by about 25% at the cost of
 	a 1K bigger binary.
+
+config FEATURE_ZSTD_SMALL
+	int "zstd speed vs side tradeoff (0:fast, 9:small)"
+	default 8  # all "fast or small" options default to small
+	range 0 9
+	depends on UNZSTD || ZSTDCAT || ZSTD || FEATURE_SEAMLESS_ZSTD
+
+	help
+	Trade code size versus speed.
+
+	Time to decompress a debian distro archive
+	using unzstd to a file of ~1900MB size. 
+	value         time (sec)  code size (x64)
+	9 (smallest)       4.56            20713
+	8                  4.08            22213
+	7                  3.69            24825
+	2                  3.46            34446
+	1                  3.30            56831
+	0 (fastest)        2.84            48831
 
 endmenu
