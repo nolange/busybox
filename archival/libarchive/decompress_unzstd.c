@@ -30,21 +30,28 @@
 #define ZSTDLIB_VISIBILITY MEM_STATIC
 #define ZSTDERRORLIB_VISIBILITY MEM_STATIC
 
-// #undef CONFIG_FEATURE_ZSTD_SMALL
-// #define CONFIG_FEATURE_ZSTD_SMALL 7
+// NO_PREFETCH does something with ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
+// at which point the added size is negligible
 
 #if CONFIG_FEATURE_ZSTD_SMALL >= 9
 #define ZSTD_NO_INLINE 1
-#define NO_PREFETCH 1
 #endif
 
+// falsch - bloatcheck misst nicht alles!
+// 0 39953 2.95s
+// 4 24196 3.51s
+// 5 18713 3.60s
+// 7 15236 3.86s
+// 8 18949 4.10s
+// 9 17562 4.67s
+
+// make O=/tmp/build all bloatcheck && for i in 1 2 3 4; do time /tmp/build/busybox unzstd -c > /dev/null /tmp/bullseye-xfce.tar.zst; done
+
 #if CONFIG_FEATURE_ZSTD_SMALL >= 7
-// -4.2
 #define HUF_FORCE_DECOMPRESS_X1 1
-// #define HUF_FORCE_DECOMPRESS_X2 1
-// -8.4
 #define ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT 1
-// #define ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG 1
+#elif CONFIG_FEATURE_ZSTD_SMALL >= 5
+#define HUF_FORCE_DECOMPRESS_X1 1
 #endif
 
 #if CONFIG_FEATURE_ZSTD_SMALL <= 7
@@ -57,10 +64,10 @@
 #if CONFIG_FEATURE_ZSTD_SMALL > 0
 /* no dynamic detection of bmi2 instruction,
  * prefer using CFLAGS setting to -march=haswell or similar */
-#define DYNAMIC_BMI2 0
+# if !defined(__BMI2__)
+#  define DYNAMIC_BMI2 0
+# endif
 #endif
-
-
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
