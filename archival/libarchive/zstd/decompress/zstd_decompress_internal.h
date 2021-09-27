@@ -138,6 +138,7 @@ struct ZSTD_DCtx_s
     int bmi2;                     /* == 1 if the CPU supports BMI2 and 0 otherwise. CPU support is determined dynamically once per context lifetime. */
 #endif
 
+#if ZSTD_DECOMPRESS_DICTIONARY != 0
     /* dictionary */
     ZSTD_DDict* ddictLocal;
     const ZSTD_DDict* ddict;     /* set by ZSTD_initDStream_usingDDict(), or ZSTD_DCtx_refDDict() */
@@ -146,6 +147,7 @@ struct ZSTD_DCtx_s
     ZSTD_dictUses_e dictUses;
     ZSTD_DDictHashSet* ddictSet;                    /* Hash set for multiple ddicts */
     ZSTD_refMultipleDDicts_e refMultipleDDicts;     /* User specified: if == 1, will allow references to multiple DDicts. Default == 0 (disabled) */
+#endif
 
     /* streaming */
     ZSTD_dStreamStage streamStage;

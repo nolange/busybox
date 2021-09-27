@@ -71,7 +71,7 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
 
 
 /* Hidden declaration for fullbench */
-size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
+static size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                           const void* src, size_t srcSize);
 /*! ZSTD_decodeLiteralsBlock() :
  * @return : nb of bytes read from src (< srcSize )
@@ -124,10 +124,12 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 RETURN_ERROR_IF(litSize > ZSTD_BLOCKSIZE_MAX, corruption_detected, "");
                 RETURN_ERROR_IF(litCSize + lhSize > srcSize, corruption_detected, "");
 
+#if ZSTD_DECOMPRESS_DICTIONARY != 0
                 /* prefetch huffman table if cold */
                 if (dctx->ddictIsCold && (litSize > 768 /* heuristic */)) {
                     PREFETCH_AREA(dctx->HUFptr, sizeof(dctx->entropy.hufTable));
                 }
+#endif
 
                 if (litEncType==set_repeat) {
                     if (singleStream) {
@@ -610,7 +612,11 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
     {   symbolEncodingType_e const LLtype = (symbolEncodingType_e)(*ip >> 6);
         symbolEncodingType_e const OFtype = (symbolEncodingType_e)((*ip >> 4) & 3);
         symbolEncodingType_e const MLtype = (symbolEncodingType_e)((*ip >> 2) & 3);
+        int ddictIsCold = 0;
         ip++;
+#if ZSTD_DECOMPRESS_DICTIONARY != 0
+        ddictIsCold = dctx->ddictIsCold;
+#endif
 
         /* Build DTables */
         {   size_t const llhSize = ZSTD_buildSeqTable(dctx->entropy.LLTable, &dctx->LLTptr,
@@ -618,7 +624,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ip, iend-ip,
                                                       LL_base, LL_bits,
                                                       LL_defaultDTable, dctx->fseEntropy,
-                                                      dctx->ddictIsCold, nbSeq,
+                                                      ddictIsCold, nbSeq,
                                                       dctx->workspace, sizeof(dctx->workspace),
                                                       ZSTD_DCtx_get_bmi2(dctx));
             RETURN_ERROR_IF(ZSTD_isError(llhSize), corruption_detected, "ZSTD_buildSeqTable failed");
@@ -630,7 +636,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ip, iend-ip,
                                                       OF_base, OF_bits,
                                                       OF_defaultDTable, dctx->fseEntropy,
-                                                      dctx->ddictIsCold, nbSeq,
+                                                      ddictIsCold, nbSeq,
                                                       dctx->workspace, sizeof(dctx->workspace),
                                                       ZSTD_DCtx_get_bmi2(dctx));
             RETURN_ERROR_IF(ZSTD_isError(ofhSize), corruption_detected, "ZSTD_buildSeqTable failed");
@@ -642,7 +648,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ip, iend-ip,
                                                       ML_base, ML_bits,
                                                       ML_defaultDTable, dctx->fseEntropy,
-                                                      dctx->ddictIsCold, nbSeq,
+                                                      ddictIsCold, nbSeq,
                                                       dctx->workspace, sizeof(dctx->workspace),
                                                       ZSTD_DCtx_get_bmi2(dctx));
             RETURN_ERROR_IF(ZSTD_isError(mlhSize), corruption_detected, "ZSTD_buildSeqTable failed");
@@ -1417,7 +1423,10 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
          */
 #if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
     !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
-        int usePrefetchDecoder = dctx->ddictIsCold;
+        int usePrefetchDecoder = 0;
+#if ZSTD_DECOMPRESS_DICTIONARY != 0
+        usePrefetchDecoder = dctx->ddictIsCold;
+#endif
 #endif
         int nbSeq;
         size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, srcSize);
@@ -1437,8 +1446,9 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
             usePrefetchDecoder = (shareLongOffsets >= minShare);
         }
 #endif
-
+#if ZSTD_DECOMPRESS_DICTIONARY != 0
         dctx->ddictIsCold = 0;
+#endif
 
 #if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
     !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
