@@ -1,0 +1,93 @@
+# Automatically process upstream sources
+
+Most changes can be done automatically:
+
+zstd_path=PATH_TO_ZSTD
+
+mkdir -p zstd
+cp $zstd_path/lib/common/zstd_deps.h $zstd_path/lib/common/mem.h .
+
+$zstd_path/contrib/freestanding_lib/freestanding.py \
+	--source-lib $zstd_path/lib \
+	--output-lib zstd \
+	-DZSTD_NO_INTRINSICS \
+	-DZSTD_NO_UNUSED_FUNCTIONS \
+	-DZSTD_LEGACY_SUPPORT=0 \
+	-DZSTD_STATIC_LINKING_ONLY \
+	-DFSE_STATIC_LINKING_ONLY \
+	-DHUF_STATIC_LINKING_ONLY \
+	-DXXH_STATIC_LINKING_ONLY \
+	-DZSTD_ADDRESS_SANITIZER=0 \
+	-DZSTD_MEMORY_SANITIZER=0 \
+	-DZSTD_DATAFLOW_SANITIZER=0 \
+	-UFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION \
+	-U__cplusplus \
+	-UZSTD_DLL_EXPORT \
+	-UZSTD_DLL_IMPORT \
+	-UZSTD_MULTITHREAD \
+	-RZSTDLIB_API=MEM_STATIC \
+	-RZSTDLIB_VISIBILITY=MEM_STATIC \
+	-RZSTDERRORLIB_VISIBILITY=MEM_STATIC \
+	-DZSTD_HAVE_WEAK_SYMBOLS=0 \
+	-DZSTD_TRACE=0 \
+	-DZSTD_NO_TRACE \
+	-DHUF_DISABLE_ASM=1
+
+sed -e 's,^\(const \)\?\([[:alnum:]_\*]* ERR_[[:alnum:]_]*\)(,ERR_STATIC \1\2(,' \
+  -e 's,^\([[:alnum:]_\*]* FSE_[[:alnum:]_]*\) \?(,MEM_STATIC \1(,' \
+  -e 's,^\([[:alnum:]_\*]* ZSTD_[[:alnum:]_]*\) \?(,MEM_STATIC \1(,' \
+  -e 's,^\([[:alnum:]_\*]* HUF_[[:alnum:]_]*\) \?(,MEM_STATIC \1(,' \
+  -e 's,^\([[:alnum:]_\*]* HIST_[[:alnum:]_]*\)(,MEM_STATIC \1(,' \
+  -e 's,^\(const \)\?\([[:alnum:]_\*]* ZSTD_[[:alnum:]_]*\) \?(,MEM_STATIC \1\2(,' \
+  -i zstd/*/*.h
+
+# Manual fixups and patches
+
+Fix compiling by removing redundant static keywords
+
+After compiling, check whether any suspicious public symbols are
+available with `nm a.out | grep ' [A-TV-Z] '`.
+Mark those as static.
+
+Completely remove following functions:
+
+ZSTD_initStaticDCtx
+ZSTD_createDCtx
+ZSTD_clearDict
+ZSTD_DCtx_selectFrameDDict
+ZSTD_isFrame
+ZSTD_isSkippableFrame
+ZSTD_frameHeaderSize
+readSkippableFrameSize
+ZSTD_readSkippableFrame
+ZSTD_findDecompressedSize
+ZSTD_getDecompressedSize
+ZSTD_findFrameSizeInfo
+ZSTD_findFrameCompressedSize
+ZSTD_decompressBound
+ZSTD_insertBlock
+ZSTD_decompressMultiFrame
+ZSTD_decompress_usingDict
+ZSTD_getDDict
+ZSTD_decompressDCtx
+ZSTD_decompress
+ZSTD_decompress_insertDictionary
+ZSTD_decompress_usingDDict
+ZSTD_initStaticDStream
+ZSTD_createDStream_advanced
+ZSTD_DCtx_loadDictionary_advanced
+ZSTD_DCtx_refDDict
+ZSTD_DCtx_setMaxWindowSize
+ZSTD_DCtx_setFormat
+ZSTD_dParam_getBounds
+ZSTD_dParam_withinBounds
+ZSTD_DCtx_getParameter
+ZSTD_DCtx_setParameter
+ZSTD_sizeof_DStream
+ZSTD_estimateDStreamSize
+ZSTD_estimateDStreamSize_fromFrame
+ZSTD_checkOutBuffer
+ZSTD_decompressStream_simpleArgs
+
+To remove comments:
+for f in $(find decompress common -name '*.h' -o -name '*.c'); do gcc -fpreprocessed -dD -E -o /tmp/out $f; done
