@@ -239,12 +239,4 @@
 # endif
 #endif
 
-/* detects whether we are being compiled under msan */
-
-/* detects whether we are being compiled undef dfsan */
-
-
-/* detects whether we are being compiled under asan */
-
-
 #endif /* ZSTD_COMPILER_H */
