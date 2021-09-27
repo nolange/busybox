@@ -43,18 +43,7 @@
 #error "Cannot force the use of the X1 and X2 decoders at the same time!"
 #endif
 
-/* Only use assembly on Linux / MacOS.
- * Disable when MSAN is enabled.
- */
-#if defined(__linux__) || defined(__linux) || defined(__APPLE__)
-# if ZSTD_MEMORY_SANITIZER || ZSTD_DATAFLOW_SANITIZER
-#  define HUF_ASM_SUPPORTED 0
-# else
-#  define HUF_ASM_SUPPORTED 1
-#endif
-#else
 # define HUF_ASM_SUPPORTED 0
-#endif
 
 /* HUF_DISABLE_ASM: Disables all ASM implementations.  */
 #define HUF_ENABLE_ASM_X86_64_BMI2 0
