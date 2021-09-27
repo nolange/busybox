@@ -160,7 +160,6 @@ struct ZSTD_DCtx_s
     size_t lhSize;
     U32 hostageByte;
     int noForwardProgress;
-    ZSTD_bufferMode_e outBufferMode;
     ZSTD_outBuffer expectedOutBuffer;
 
     /* workspace */
@@ -182,7 +181,7 @@ MEM_STATIC int ZSTD_DCtx_get_bmi2(const struct ZSTD_DCtx_s *dctx) {
 #endif
 }
 #define ZSTD_DCtx_get_staticSize(dctx) (0)
-
+#define ZSTD_DCtx_get_outBufferMode(dctx) (ZSTD_bm_buffered)
 /*-*******************************************************
  *  Shared internal functions
  *********************************************************/

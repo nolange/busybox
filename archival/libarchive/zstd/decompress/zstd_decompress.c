@@ -80,7 +80,7 @@ static void ZSTD_DCtx_resetParameters(ZSTD_DCtx* dctx)
     assert(dctx->streamStage == zdss_init);
     dctx->format = ZSTD_f_zstd1;
     dctx->maxWindowSize = ZSTD_MAXWINDOWSIZE_DEFAULT;
-    dctx->outBufferMode = ZSTD_bm_buffered;
+    // dctx->outBufferMode = ZSTD_bm_buffered; REMOVED
     dctx->forceIgnoreChecksum = ZSTD_d_validateChecksum;
     dctx->refMultipleDDicts = ZSTD_rmd_refSingleDDict;
 }
@@ -952,7 +952,7 @@ static size_t ZSTD_decompressContinueStream(
             ZSTD_DStream* zds, char** op, char* oend,
             void const* src, size_t srcSize) {
     int const isSkipFrame = ZSTD_isSkipFrame(zds);
-    if (zds->outBufferMode == ZSTD_bm_buffered) {
+    if (ZSTD_DCtx_get_outBufferMode(zds) == ZSTD_bm_buffered) {
         size_t const dstSize = isSkipFrame ? 0 : zds->outBuffSize - zds->outStart;
         size_t const decodedSize = ZSTD_decompressContinue(zds,
                 zds->outBuff + zds->outStart, dstSize, src, srcSize);
@@ -972,7 +972,7 @@ static size_t ZSTD_decompressContinueStream(
         /* Flushing is not needed. */
         zds->streamStage = zdss_read;
         assert(*op <= oend);
-        assert(zds->outBufferMode == ZSTD_bm_stable);
+        assert(ZSTD_DCtx_get_outBufferMode(zds) == ZSTD_bm_stable);
     }
     return 0;
 }
@@ -1042,7 +1042,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
 
             /* Check output buffer is large enough for ZSTD_odm_stable. */
-            if (zds->outBufferMode == ZSTD_bm_stable
+            if (ZSTD_DCtx_get_outBufferMode(zds) == ZSTD_bm_stable
                 && zds->fParams.frameType != ZSTD_skippableFrame
                 && zds->fParams.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN
                 && (U64)(size_t)(oend-op) < zds->fParams.frameContentSize) {
@@ -1072,7 +1072,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
             /* Adapt buffer sizes to frame header instructions */
             {   size_t const neededInBuffSize = MAX(zds->fParams.blockSizeMax, 4 /* frame checksum */);
-                size_t const neededOutBuffSize = zds->outBufferMode == ZSTD_bm_buffered
+                size_t const neededOutBuffSize = ZSTD_DCtx_get_outBufferMode(zds) == ZSTD_bm_buffered
                         ? ZSTD_decodingBufferSize_min(zds->fParams.windowSize, zds->fParams.frameContentSize)
                         : 0;
 
