@@ -111,7 +111,6 @@ static ZSTD_DCtx* ZSTD_createDCtx_internal(ZSTD_customMem customMem) {
 
     {   ZSTD_DCtx* const dctx = (ZSTD_DCtx*)ZSTD_customMalloc(sizeof(*dctx), customMem);
         if (!dctx) return NULL;
-        dctx->customMem = customMem;
         ZSTD_initDCtx_internal(dctx);
         return dctx;
     }
@@ -121,7 +120,7 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
     if (dctx==NULL) return 0;   /* support free on NULL */
     RETURN_ERROR_IF(dctx->staticSize, memory_allocation, "not compatible with static DCtx");
-    {   ZSTD_customMem const cMem = dctx->customMem;
+    {   ZSTD_customMem const cMem = ZSTD_defaultCMem;
         ZSTD_clearDict(dctx);
         ZSTD_customFree(dctx->inBuff, cMem);
         dctx->inBuff = NULL;
@@ -1095,10 +1094,10 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                                 bufferSize > zds->staticSize - sizeof(ZSTD_DCtx),
                                 memory_allocation, "");
                         } else {
-                            ZSTD_customFree(zds->inBuff, zds->customMem);
+                            ZSTD_customFree(zds->inBuff, ZSTD_defaultCMem);
                             zds->inBuffSize = 0;
                             zds->outBuffSize = 0;
-                            zds->inBuff = (char*)ZSTD_customMalloc(bufferSize, zds->customMem);
+                            zds->inBuff = (char*)ZSTD_customMalloc(bufferSize, ZSTD_defaultCMem);
                             RETURN_ERROR_IF(zds->inBuff == NULL, memory_allocation, "");
                         }
                         zds->inBuffSize = neededInBuffSize;
