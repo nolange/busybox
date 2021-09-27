@@ -134,7 +134,6 @@ struct ZSTD_DCtx_s
     const BYTE* litPtr;
     size_t litSize;
     size_t rleSize;
-    size_t staticSize;
 #if DYNAMIC_BMI2 != 0
     int bmi2;                     /* == 1 if the CPU supports BMI2 and 0 otherwise. CPU support is determined dynamically once per context lifetime. */
 #endif
@@ -182,6 +181,7 @@ MEM_STATIC int ZSTD_DCtx_get_bmi2(const struct ZSTD_DCtx_s *dctx) {
 	return 0;
 #endif
 }
+#define ZSTD_DCtx_get_staticSize(dctx) (0)
 
 /*-*******************************************************
  *  Shared internal functions

@@ -87,7 +87,7 @@ static void ZSTD_DCtx_resetParameters(ZSTD_DCtx* dctx)
 
 static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
 {
-    dctx->staticSize  = 0;
+    // dctx->staticSize  = 0; REMOVED
     dctx->ddict       = NULL;
     dctx->ddictLocal  = NULL;
     dctx->dictEnd     = NULL;
@@ -119,7 +119,7 @@ static ZSTD_DCtx* ZSTD_createDCtx_internal(ZSTD_customMem customMem) {
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
     if (dctx==NULL) return 0;   /* support free on NULL */
-    RETURN_ERROR_IF(dctx->staticSize, memory_allocation, "not compatible with static DCtx");
+    RETURN_ERROR_IF(ZSTD_DCtx_get_staticSize(zds), memory_allocation, "not compatible with static DCtx");
     {   ZSTD_customMem const cMem = ZSTD_defaultCMem;
         ZSTD_clearDict(dctx);
         ZSTD_customFree(dctx->inBuff, cMem);
@@ -1087,11 +1087,11 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                                     (U32)zds->inBuffSize, (U32)neededInBuffSize);
                         DEBUGLOG(4, "outBuff : from %u to %u",
                                     (U32)zds->outBuffSize, (U32)neededOutBuffSize);
-                        if (zds->staticSize) {  /* static DCtx */
-                            DEBUGLOG(4, "staticSize : %u", (U32)zds->staticSize);
-                            assert(zds->staticSize >= sizeof(ZSTD_DCtx));  /* controlled at init */
+                        if (ZSTD_DCtx_get_staticSize(zds)) {  /* static DCtx */
+                            DEBUGLOG(4, "staticSize : %u", (U32)ZSTD_DCtx_get_staticSize(zds));
+                            assert(ZSTD_DCtx_get_staticSize(zds) >= sizeof(ZSTD_DCtx));  /* controlled at init */
                             RETURN_ERROR_IF(
-                                bufferSize > zds->staticSize - sizeof(ZSTD_DCtx),
+                                bufferSize > ZSTD_DCtx_get_staticSize(zds) - sizeof(ZSTD_DCtx),
                                 memory_allocation, "");
                         } else {
                             ZSTD_customFree(zds->inBuff, ZSTD_defaultCMem);
